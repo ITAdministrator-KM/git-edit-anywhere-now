@@ -1,5 +1,6 @@
 
 import { ApiBase } from './apiBase';
+import { API_CONFIG } from '../config/api.config';
 
 interface LoginData {
   username: string;
@@ -49,13 +50,10 @@ export class AuthService extends ApiBase {
       });
       
       // Make the request with proper headers and JSON body
-      const response = await this.makeRequest('/auth/login.php', {
+      const response = await this.makeRequest(API_CONFIG.AUTH.LOGIN, {
         method: 'POST',
-        body: JSON.stringify(loginData), // Stringify the body here
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        body: JSON.stringify(loginData),
+        // Headers are automatically added by ApiBase
       });
       
       console.log('AuthService: Raw response:', response);
@@ -66,7 +64,7 @@ export class AuthService extends ApiBase {
         throw new Error('Invalid response from server');
       }
       
-      // Format 1: { status: 'success', message: '...', data: { user: {...}, token: '...' } }
+          // Format 1: { status: 'success', message: '...', data: { user: {...}, token: '...' } }
       if (response.status === 'success' && response.data) {
         console.log('AuthService: Detected status:success format');
         
@@ -76,12 +74,15 @@ export class AuthService extends ApiBase {
           throw new Error('Incomplete login data received from server');
         }
         
+        // Store the token in localStorage
+        localStorage.setItem('authToken', response.data.token);
+        
         return {
           success: true,
           message: response.message || 'Login successful',
           token: response.data.token,
           user: response.data.user,
-          data: response.data // Include full data for backward compatibility
+          data: response.data
         };
       }
       
@@ -94,6 +95,9 @@ export class AuthService extends ApiBase {
           console.error('AuthService: Missing token or user in response');
           throw new Error('Incomplete login data received from server');
         }
+        
+        // Store the token in localStorage
+        localStorage.setItem('authToken', response.token);
         
         return {
           success: true,

@@ -10,7 +10,8 @@ import type { PublicUser } from '@/services/apiService';
 import { Search, Printer, AlertCircle, Download } from 'lucide-react';
 import StandardIDCard from './id-card/StandardIDCard';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 const IDCardGenerator = () => {
   const [users, setUsers] = useState<PublicUser[]>([]);
@@ -60,94 +61,93 @@ const IDCardGenerator = () => {
   const generatePDF = async (usersToPrint: PublicUser[]) => {
     try {
       const pdf = new jsPDF('portrait', 'mm', 'a4');
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const cardWidth = 85.6;
-      const cardHeight = 54;
-      const margin = 10;
+      const pageWidth = 210; // A4 width in mm
+      const cardWidth = 85.6; // Standard CR80 card width in mm
+      const cardHeight = 54;  // Standard CR80 card height in mm
+      const margin = 15;      // Margin from page edges
+      const gap = 10;         // Gap between cards
       
-      // Two cards per page layout
-      const cardsPerPage = 2;
-      let currentPage = 0;
+      // Calculate positions for two cards per page
+      const cardPositions = [
+        { x: margin, y: margin },
+        { x: margin + cardWidth + gap, y: margin },
+        { x: margin, y: margin + cardHeight + gap },
+        { x: margin + cardWidth + gap, y: margin + cardHeight + gap }
+      ];
       
       for (let i = 0; i < usersToPrint.length; i++) {
         const user = usersToPrint[i];
-        const cardIndex = i % cardsPerPage;
+        const cardIndex = i % 4;
         
-        if (cardIndex === 0 && i > 0) {
+        // Add new page if needed (first card or after 4 cards)
+        if (i > 0 && cardIndex === 0) {
           pdf.addPage();
-          currentPage++;
         }
+        
+        const pos = cardPositions[cardIndex];
         
         // Create a temporary div for the ID card
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '-9999px';
+        tempDiv.style.width = '85.6mm';
+        tempDiv.style.height = '54mm';
+        tempDiv.style.backgroundColor = 'white';
         document.body.appendChild(tempDiv);
         
-        // Render the ID card component
-        const cardElement = document.createElement('div');
-        cardElement.innerHTML = `
-          <div style="width: 85.6mm; height: 54mm; background: white; border: 2px solid black; font-family: Arial; font-size: 8px; color: black; padding: 3mm; box-sizing: border-box;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2mm; border-bottom: 1px solid black; padding-bottom: 1mm;">
-              <div style="width: 12mm; height: 12mm; border: 1px solid black; display: flex; align-items: center; justify-content: center; font-size: 6px;">LOGO1</div>
-              <div style="text-align: center; font-weight: bold; font-size: 9px; flex: 1; margin: 0 2mm;">
-                <div>DIVISIONAL SECRETARIAT</div>
-                <div>KALMUNAI</div>
-              </div>
-              <div style="width: 12mm; height: 12mm; border: 1px solid black; display: flex; align-items: center; justify-content: center; font-size: 6px;">LOGO2</div>
-            </div>
-            <div style="display: flex; height: calc(100% - 15mm);">
-              <div style="flex: 1; padding-right: 2mm;">
-                <div style="margin-bottom: 1.5mm; display: flex; font-size: 7px;">
-                  <span style="font-weight: bold; width: 25mm;">Name:</span>
-                  <span>${user.name}</span>
-                </div>
-                <div style="margin-bottom: 1.5mm; display: flex; font-size: 7px;">
-                  <span style="font-weight: bold; width: 25mm;">NIC:</span>
-                  <span>${user.nic}</span>
-                </div>
-                <div style="margin-bottom: 1.5mm; display: flex; font-size: 7px;">
-                  <span style="font-weight: bold; width: 25mm;">Mobile:</span>
-                  <span>${user.mobile || 'N/A'}</span>
-                </div>
-                <div style="margin-bottom: 1.5mm; display: flex; font-size: 7px;">
-                  <span style="font-weight: bold; width: 25mm;">Address:</span>
-                  <span>${user.address.length > 45 ? user.address.substring(0, 45) + '...' : user.address}</span>
-                </div>
-                <div style="margin-bottom: 1.5mm; display: flex; font-size: 7px;">
-                  <span style="font-weight: bold; width: 25mm;">Public ID:</span>
-                  <span>${user.public_id}</span>
-                </div>
-              </div>
-              <div style="width: 50%; display: flex; align-items: center; justify-content: center;">
-                <div style="width: 35mm; height: 35mm; border: 1px solid black; display: flex; align-items: center; justify-content: center; font-size: 10px;">QR CODE</div>
-              </div>
-            </div>
-          </div>
-        `;
+        // Create a temporary React root
+        const root = document.createElement('div');
+        tempDiv.appendChild(root);
         
-        tempDiv.appendChild(cardElement);
+        // Import ReactDOM client-side
+        const ReactDOM = (await import('react-dom/client')).default;
         
-        // Convert to canvas and add to PDF
-        const canvas = await html2canvas(cardElement, {
-          scale: 3,
-          backgroundColor: 'white',
-          width: 324, // 85.6mm at 96 DPI
-          height: 204  // 54mm at 96 DPI
-        });
+        // Create root and render the StandardIDCard component
+        const reactRoot = ReactDOM.createRoot(root);
+        reactRoot.render(
+          <StandardIDCard userData={{
+            ...user,
+            address: user.address || '',
+            public_id: user.public_id || '',
+            nic: user.nic || '',
+            name: user.name || ''
+          }} />
+        );
         
-        const imgData = canvas.toDataURL('image/png');
+        // Wait for rendering to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Position calculation
-        const x = margin + (cardIndex === 1 ? cardWidth + 20 : 0);
-        const y = margin + Math.floor(i / 2) * (cardHeight + 20);
-        
-        pdf.addImage(imgData, 'PNG', x, y, cardWidth, cardHeight);
-        
-        // Clean up
-        document.body.removeChild(tempDiv);
+        try {
+          // Convert to canvas with higher DPI for better print quality
+          const canvas = await html2canvas(tempDiv.firstChild as HTMLElement, {
+            scale: 3,
+            backgroundColor: 'white',
+            logging: false,
+            useCORS: true,
+            allowTaint: true
+          });
+          
+          // Add the canvas to PDF
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          pdf.addImage(
+            imgData, 
+            'PNG', 
+            pos.x, 
+            pos.y, 
+            cardWidth, 
+            cardHeight,
+            undefined,
+            'FAST'
+          );
+        } catch (error) {
+          console.error('Error generating card:', error);
+          throw error;
+        } finally {
+          // Clean up
+          reactRoot.unmount();
+          document.body.removeChild(tempDiv);
+        }
       }
       
       return pdf;
@@ -159,7 +159,7 @@ const IDCardGenerator = () => {
 
   const handlePrint = async () => {
     try {
-      const usersToPrint = filteredUsers.filter(user => 
+      const usersToPrint = users.filter(user => 
         selectedUsers.includes(user.id)
       );
 
@@ -175,11 +175,16 @@ const IDCardGenerator = () => {
       setIsLoading(true);
       const pdf = await generatePDF(usersToPrint);
       
-      if (autoPrint) {
-        pdf.autoPrint();
-      }
+      // Open print dialog
+      const pdfBlob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      pdf.save(`id-cards-batch-${new Date().toISOString().split('T')[0]}.pdf`);
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
       
       toast({
         title: "Success",

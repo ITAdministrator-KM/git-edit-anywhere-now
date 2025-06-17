@@ -10,10 +10,19 @@ header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Accept");
 
 // Force JSON for all responses
-if (strpos($_SERVER['HTTP_ACCEPT'], 'application/json') === false && $_SERVER['REQUEST_METHOD'] !== 'OPTIONS') {
-    http_response_code(406);
-    echo json_encode(array("message" => "Only JSON requests are accepted"));
-    exit();
+if ($_SERVER['REQUEST_METHOD'] !== 'OPTIONS') {
+    $accept = isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
+    if (
+        strpos($accept, 'application/json') === false && 
+        strpos($accept, '*/*') === false
+    ) {
+        http_response_code(406);
+        echo json_encode(array(
+            "message" => "Only JSON requests are accepted",
+            "acceptHeader" => $accept
+        ));
+        exit();
+    }
 }
 
 // Handle preflight OPTIONS request

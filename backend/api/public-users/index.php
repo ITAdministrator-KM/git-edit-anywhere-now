@@ -54,48 +54,41 @@ function generateSequentialPublicId($db) {
 
 function getPublicUsers($db) {
     try {
-        $id = $_GET['id'] ?? null;
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
+        $offset = ($page - 1) * $limit;
         
-        if ($id) {
-            $query = "SELECT pu.*, d.name as department_name, `div`.name as division_name,
-                            qr.qr_code_data, qr.qr_code_url
-                     FROM public_users pu 
-                     LEFT JOIN departments d ON pu.department_id = d.id 
-                     LEFT JOIN divisions `div` ON pu.division_id = `div`.id 
-                     LEFT JOIN qr_codes qr ON pu.id = qr.public_user_id
-                     WHERE pu.id = ? AND pu.status = 'active'";
-            
-            $stmt = $db->prepare($query);
-            $stmt->execute([$id]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$user) {
-                sendError(404, "Public user not found");
-                return;
-            }
-            
+        // Get total count first
+        $countQuery = "SELECT COUNT(*) as total FROM public_users WHERE status = 'active'";
+        $countStmt = $db->query($countQuery);
+        $totalCount = $countStmt->fetch(PDO::FETCH_ASSOC)['total'];
+        
+        // Get paginated results
+        $query = "SELECT pu.*, d.name as department_name, dvs.name as division_name 
+                 FROM public_users pu 
+                 LEFT JOIN departments d ON pu.department_id = d.id 
+                 LEFT JOIN divisions dvs ON pu.division_id = dvs.id 
+                 WHERE pu.status = 'active' 
+                 ORDER BY pu.created_at DESC 
+                 LIMIT ? OFFSET ?";
+                 
+        $stmt = $db->prepare($query);
+        $stmt->execute([$limit, $offset]);
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($users as &$user) {
             unset($user['password_hash']);
-            sendResponse($user, "Public user retrieved successfully");
-        } else {
-            $query = "SELECT pu.*, d.name as department_name, `div`.name as division_name,
-                            qr.qr_code_data, qr.qr_code_url
-                     FROM public_users pu 
-                     LEFT JOIN departments d ON pu.department_id = d.id 
-                     LEFT JOIN divisions `div` ON pu.division_id = `div`.id 
-                     LEFT JOIN qr_codes qr ON pu.id = qr.public_user_id
-                     WHERE pu.status = 'active' 
-                     ORDER BY pu.id ASC";
-            
-            $stmt = $db->prepare($query);
-            $stmt->execute();
-            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($users as &$user) {
-                unset($user['password_hash']);
-            }
-            
-            sendResponse($users, "Public users retrieved successfully");
         }
+        
+        sendResponse([
+            'users' => $users,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $totalCount,
+                'pages' => ceil($totalCount / $limit)
+            ]
+        ], "Public users retrieved successfully");
     } catch (Exception $e) {
         error_log("Get public users error: " . $e->getMessage());
         sendError(500, "Failed to fetch public users: " . $e->getMessage());

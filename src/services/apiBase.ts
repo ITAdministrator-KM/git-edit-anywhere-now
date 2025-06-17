@@ -1,133 +1,120 @@
+import { API_CONFIG, DEFAULT_HEADERS } from '../config/api.config';
 
 export class ApiBase {
-  // Point to live server
-  private baseURL = 'https://dskalmunai.lk/backend/api';
+  private baseURL = API_CONFIG.BASE_URL;
+  private maxRetries = API_CONFIG.MAX_RETRIES;
+  private timeout = API_CONFIG.TIMEOUT;
 
   protected async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    // Get auth token from localStorage - check both 'authToken' and 'token' for backward compatibility
-    let authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
-    
-    // Log the token status for debugging
-    console.log(`API Request [${options.method || 'GET'}] to: ${url}`);
-    console.log('Auth token exists:', !!authToken);
-    
-    // Create headers object
-    const headers = new Headers();
-    
-    // Set default headers
-    headers.set('Content-Type', 'application/json');
-    headers.set('Accept', 'application/json');
-    
-    // Add auth token if it exists
-    if (authToken) {
-      headers.set('Authorization', `Bearer ${authToken}`);
-    }
-    
-    // Create the request options
-    const defaultOptions: RequestInit = {
-      method: 'GET',
-      credentials: 'include', // Important for cookies/sessions
-      headers,
-      ...options,
-    };
-    
-    // Handle request body
-    if (defaultOptions.body) {
-      if (typeof defaultOptions.body === 'object' && !(defaultOptions.body instanceof FormData)) {
-        defaultOptions.body = JSON.stringify(defaultOptions.body);
-      }
-      // If it's FormData, let the browser set the Content-Type header automatically
-      else if (defaultOptions.body instanceof FormData) {
-        // Remove the Content-Type header to let the browser set it with the correct boundary
-        headers.delete('Content-Type');
-      }
-    }
-    
-    // Merge any headers that were passed in the options
-    if (options.headers) {
-      const incomingHeaders = new Headers(options.headers);
-      incomingHeaders.forEach((value, key) => {
-        headers.set(key, value);
-      });
-    }
-    
-    // Update the headers in the request options
-    defaultOptions.headers = headers;
+    return this.makeRequestWithRetry(endpoint, options, 0);
+  }
 
-    // Log request details
-    console.log('Request config:', {
-      method: defaultOptions.method,
-      headers: Object.fromEntries(headers.entries()),
-      hasBody: !!defaultOptions.body,
-      url
-    });
+  private async makeRequestWithRetry(endpoint: string, options: RequestInit, retryCount: number): Promise<any> {
+    // Normalize endpoint (remove leading/trailing slashes)
+    const cleanEndpoint = endpoint.replace(/^\/+|\/+$/g, '');
+    const url = `${this.baseURL}/${cleanEndpoint}`;
+    const authToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(url, defaultOptions);
+      // Create headers from default headers and merge with any provided headers
+      const headers = new Headers(DEFAULT_HEADERS);
       
-      console.log(`Response [${response.status} ${response.statusText}] from: ${url}`);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      const responseText = await response.text();
-      
-      // Try to parse as JSON, fallback to text
-      let responseData;
-      try {
-        responseData = responseText ? JSON.parse(responseText) : {};
-      } catch (e) {
-        console.warn('Failed to parse JSON response, using raw text');
-        responseData = responseText;
+      // Add any custom headers from options
+      if (options.headers) {
+        const customHeaders = new Headers(options.headers);
+        customHeaders.forEach((value, key) => {
+          headers.set(key, value);
+        });
       }
+      
+      // Add authorization header if token exists and not already set
+      if (authToken && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${authToken}`);
+      }
+      
+      // Log request for debugging
+      if (import.meta.env.DEV) {
+        console.debug(`[API] ${options.method || 'GET'} ${url}`, {
+          headers: Object.fromEntries(headers.entries()),
+          body: options.body ? JSON.parse(options.body as string) : undefined
+        });
+      }
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal
+      });
 
       if (!response.ok) {
-        console.error('API Error:', {
+        const errorText = await response.text();
+        
+        // Log detailed error information for debugging
+        console.error(`API Error [${response.status}]: ${url}`, {
           status: response.status,
           statusText: response.statusText,
-          url,
-          response: responseData
+          headers: Object.fromEntries(response.headers.entries()),
+          error: errorText,
+          requestHeaders: Object.fromEntries(headers.entries())
         });
         
-        // Handle specific error cases
+        // Handle specific HTTP status codes
         if (response.status === 401) {
-          console.warn('Authentication failed, clearing auth data');
-          // Clear all auth-related data
-          ['authToken', 'token', 'userRole', 'username', 'userData', 'userId', 'userFullName'].forEach(key => {
-            localStorage.removeItem(key);
-            sessionStorage.removeItem(key);
-          });
-          
-          // Only redirect if we're not already on the login page
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login';
+          console.log('Authentication failed, clearing auth data');
+          localStorage.clear();
+          window.location.href = '/login';
+          throw new Error('Your session has expired. Please log in again.');
+        }
+        
+        if (response.status === 404) {
+          throw new Error('The requested resource was not found. Please try again later.');
+        }
+        
+        if (response.status === 406) {
+          // Try to parse error response if it's JSON
+          try {
+            const errorData = JSON.parse(errorText);
+            throw new Error(errorData.message || 'The request was not acceptable. Please try again.');
+          } catch (e) {
+            throw new Error('The server cannot produce a response matching the list of acceptable values.');
           }
         }
         
-        // Create a more descriptive error message
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        if (responseData) {
-          if (typeof responseData === 'string') {
-            errorMessage = responseData;
-          } else if (responseData.message) {
-            errorMessage = responseData.message;
-          } else if (responseData.error) {
-            errorMessage = responseData.error;
-          } else {
-            errorMessage = JSON.stringify(responseData);
-          }
+        if (response.status >= 500) {
+          throw new Error('A server error occurred. Our team has been notified. Please try again later.');
         }
         
-        const error = new Error(errorMessage);
-        (error as any).status = response.status;
-        (error as any).response = responseData;
-        throw error;
+        // For other errors, try to extract a meaningful message
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          // If we can't parse JSON, use the raw text
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
       }
-      
-      return responseData;
-    } catch (error) {
-      console.log('API request failed:', error);
+
+      const data = await response.json();
+      return data;
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        if (retryCount < this.maxRetries) {
+          console.log(`Request timed out, retrying (${retryCount + 1}/${this.maxRetries})`);
+          return this.makeRequestWithRetry(endpoint, options, retryCount + 1);
+        }
+        throw new Error('Request timed out. Please check your internet connection and try again.');
+      }
       throw error;
+      
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }

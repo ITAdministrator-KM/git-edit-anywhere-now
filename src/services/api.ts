@@ -44,21 +44,15 @@ export interface PublicUser {
   public_id: string;
   name: string;
   nic: string;
-  address: string; 
-  mobile: string;
-  email: string;
-  username: string;
-  password?: string;
-  qr_code?: string;
-  qr_code_data?: string;
-  qr_code_url?: string;
-  department_id?: number;
+  address: string;
+  phone?: string;
+  department_id: number;
   division_id?: number;
   department_name?: string;
   division_name?: string;
-  status: string;
+  status: 'active' | 'inactive';
   created_at: string;
-  updated_at?: string;
+  updated_at: string;
 }
 
 export interface PublicUserPasswordUpdate {
@@ -122,7 +116,67 @@ export interface QRScanData {
   scan_data?: string;
 }
 
+export interface RegistryEntry {
+  id: number;
+  registry_id: string;
+  public_user_id?: number;
+  visitor_name: string;
+  visitor_nic: string;
+  visitor_address?: string;
+  visitor_phone?: string;
+  department_id: number;
+  division_id?: number;
+  purpose_of_visit: string;
+  remarks?: string;
+  entry_time: string;
+  visitor_type: 'new' | 'existing';
+  status: 'active' | 'checked_out' | 'deleted';
+  department_name?: string;
+  division_name?: string;
+  public_user_name?: string;
+  updated_at?: string;
+}
+
+export interface Service {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+type CustomRequestInit = RequestInit & {
+  timeout?: number;
+  retry?: boolean;
+  maxRetries?: number;
+};
+
+interface RequestOptions extends RequestInit {
+  timeout?: number;
+  retry?: boolean;
+  maxRetries?: number;
+}
+
 class ApiService extends ApiBase {
+  private static readonly baseURL = 'https://dskalmunai.lk/backend/api';
+  protected async makeRequest(endpoint: string, options: CustomRequestInit = {}): Promise<any> {
+    const { timeout = 30000, retry = false, maxRetries = 3, ...fetchOptions } = options;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(ApiService.baseURL + endpoint, {
+        ...fetchOptions,
+        signal: controller.signal
+      });
+      // ...rest of the method
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   // Auth
   async login(data: { username: string; password: string; role: string }): Promise<LoginResponse> {
     const response = await this.makeRequest('/auth/login.php', {
@@ -448,6 +502,60 @@ class ApiService extends ApiBase {
       body: JSON.stringify(data),
     });
     return response;
+  }
+
+  // Registry Management
+  async getRegistryEntries(date?: string): Promise<RegistryEntry[]> {
+    try {
+      const query = date ? `?date=${date}` : '';
+      const response = await this.makeRequest(`/registry/${query}`);
+      return Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('Failed to fetch registry entries:', error);
+      return [];
+    }
+  }
+
+  async createRegistryEntry(entryData: any): Promise<RegistryEntry> {
+    const response = await this.makeRequest('/registry/', {
+      method: 'POST',
+      body: JSON.stringify(entryData),
+    });
+    return response?.data || response;
+  }
+
+  async updateRegistryEntry(id: number, entryData: any): Promise<RegistryEntry> {
+    const response = await this.makeRequest('/registry/', {
+      method: 'PUT',
+      body: JSON.stringify({ id, ...entryData }),
+    });
+    return response?.data || response;
+  }
+
+  async deleteRegistryEntry(id: number): Promise<void> {
+    await this.makeRequest('/registry/', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
+    });
+  }
+
+  // Service Catalog
+  async getServices(): Promise<Service[]> {
+    try {
+      const response = await this.makeRequest('/service-catalog/', {
+        timeout: 10000,
+        retry: true,
+        maxRetries: 3
+      });
+      
+      if (!response || !Array.isArray(response?.data)) {
+        throw new Error('Invalid response format');
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch services:', error);
+      throw error;
+    }
   }
 }
 
