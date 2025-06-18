@@ -1,6 +1,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigation } from './useNavigation';
 
 export interface AuthUser {
   id: number;
@@ -22,7 +22,7 @@ export interface AuthUser {
 export const useAuth = (requiredRole?: string) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const { navigate } = useNavigation();
 
   const clearAuth = useCallback(() => {
     console.log('useAuth: Clearing authentication data');
@@ -54,7 +54,7 @@ export const useAuth = (requiredRole?: string) => {
         if (!token || !userRole || !userDataStr) {
           console.log('useAuth: Missing auth data, redirecting to login');
           clearAuth();
-          navigate('/login', { replace: true });
+          navigate('/login');
           return;
         }
 
@@ -62,7 +62,7 @@ export const useAuth = (requiredRole?: string) => {
         if (typeof token !== 'string' || token.split('.').length !== 3) {
           console.error('useAuth: Invalid token format');
           clearAuth();
-          navigate('/login', { replace: true });
+          navigate('/login');
           return;
         }
 
@@ -74,7 +74,7 @@ export const useAuth = (requiredRole?: string) => {
           if (!userData || typeof userData !== 'object' || !userData.id || !userData.role) {
             console.error('useAuth: Invalid user data structure');
             clearAuth();
-            navigate('/login', { replace: true });
+            navigate('/login');
             return;
           }
           
@@ -82,7 +82,7 @@ export const useAuth = (requiredRole?: string) => {
           if (requiredRole && userRole !== requiredRole) {
             console.log(`useAuth: User role ${userRole} doesn't match required role ${requiredRole}`);
             clearAuth();
-            navigate('/login', { replace: true });
+            navigate('/login');
             return;
           }
 
@@ -92,12 +92,12 @@ export const useAuth = (requiredRole?: string) => {
         } catch (error) {
           console.error('useAuth: Error parsing user data:', error);
           clearAuth();
-          navigate('/login', { replace: true });
+          navigate('/login');
         }
       } catch (error) {
         console.error('useAuth: Unexpected error during authentication check:', error);
         clearAuth();
-        navigate('/login', { replace: true });
+        navigate('/login');
       } finally {
         setLoading(false);
       }
@@ -114,7 +114,7 @@ export const useAuth = (requiredRole?: string) => {
   const logout = useCallback(() => {
     console.log('useAuth: Logging out user');
     clearAuth();
-    navigate('/login', { replace: true });
+    navigate('/login');
   }, [clearAuth, navigate]);
 
   return { 

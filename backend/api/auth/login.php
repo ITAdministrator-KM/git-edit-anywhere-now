@@ -6,6 +6,10 @@ include_once '../../config/error_handler.php';
 
 header('Content-Type: application/json');
 
+// Enable error logging
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+
 // Simple JWT generation function
 function generateJWT($payload) {
     $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
@@ -22,23 +26,30 @@ function generateJWT($payload) {
 }
 
 try {
+    error_log("Login endpoint accessed");
+    
     $database = new Database();
     $db = $database->getConnection();
 
     if (!$db) {
+        error_log("Database connection failed");
         sendError(500, "Database connection failed");
         exit;
     }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        error_log("Invalid request method: " . $_SERVER['REQUEST_METHOD']);
         sendError(405, "Method not allowed");
         exit;
     }
 
     $input = file_get_contents("php://input");
+    error_log("Raw input: " . $input);
+    
     $data = json_decode($input);
 
     if (!$data || !isset($data->username) || !isset($data->password)) {
+        error_log("Missing username or password");
         sendError(400, "Username and password are required");
         exit;
     }
@@ -56,6 +67,12 @@ try {
                   WHERE username = ? AND status = 'active'";
         
         $stmt = $db->prepare($query);
+        if (!$stmt) {
+            error_log("Failed to prepare users query: " . $db->errorInfo()[2]);
+            sendError(500, "Database query error");
+            exit;
+        }
+        
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -68,9 +85,11 @@ try {
                 if ($user['department_id']) {
                     $deptQuery = "SELECT name FROM departments WHERE id = ?";
                     $deptStmt = $db->prepare($deptQuery);
-                    $deptStmt->execute([$user['department_id']]);
-                    $dept = $deptStmt->fetch(PDO::FETCH_ASSOC);
-                    $departmentName = $dept ? $dept['name'] : null;
+                    if ($deptStmt) {
+                        $deptStmt->execute([$user['department_id']]);
+                        $dept = $deptStmt->fetch(PDO::FETCH_ASSOC);
+                        $departmentName = $dept ? $dept['name'] : null;
+                    }
                 }
                 
                 $token = generateJWT([
@@ -84,12 +103,14 @@ try {
                 try {
                     $sessionQuery = "INSERT INTO user_sessions (user_id, token, expires_at, is_valid) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR), 1)";
                     $sessionStmt = $db->prepare($sessionQuery);
-                    $sessionStmt->execute([$user['id'], $token]);
+                    if ($sessionStmt) {
+                        $sessionStmt->execute([$user['id'], $token]);
+                    }
                 } catch (Exception $e) {
                     error_log("Session creation failed: " . $e->getMessage());
                 }
                 
-                sendResponse([
+                echo json_encode([
                     'success' => true,
                     'message' => 'Login successful',
                     'token' => $token,
@@ -103,8 +124,10 @@ try {
                         'department_id' => $user['department_id'],
                         'department_name' => $departmentName
                     ]
-                ], "Login successful");
+                ]);
                 exit;
+            } else {
+                error_log("Password verification failed for user: $username");
             }
         }
     }
@@ -116,6 +139,12 @@ try {
                   WHERE username = ? AND status = 'active'";
         
         $stmt = $db->prepare($query);
+        if (!$stmt) {
+            error_log("Failed to prepare public_users query: " . $db->errorInfo()[2]);
+            sendError(500, "Database query error");
+            exit;
+        }
+        
         $stmt->execute([$username]);
         $publicUser = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -139,19 +168,15 @@ try {
                     $sessionQuery = "INSERT INTO user_sessions (user_id, token, expires_at, is_valid) 
                                   VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR), 1)";
                     $sessionStmt = $db->prepare($sessionQuery);
-                    $sessionStmt->execute([$userId, $token]);
-                    
-                    // Get the inserted session ID for logging
-                    $sessionId = $db->lastInsertId();
-                    error_log("Created session ID: " . $sessionId . " for user ID: " . $userId);
-                    
+                    if ($sessionStmt) {
+                        $sessionStmt->execute([$userId, $token]);
+                        error_log("Created session for public user ID: " . $userId);
+                    }
                 } catch (Exception $e) {
                     error_log("Session creation failed: " . $e->getMessage());
-                    error_log("User ID: " . $userId . ", Type: " . gettype($userId));
-                    error_log("SQL Error: " . $e->getMessage());
                 }
                 
-                sendResponse([
+                echo json_encode([
                     'success' => true,
                     'message' => 'Login successful',
                     'token' => $token,
@@ -164,18 +189,21 @@ try {
                         'email' => $publicUser['email'],
                         'status' => $publicUser['status']
                     ]
-                ], "Login successful");
+                ]);
                 exit;
+            } else {
+                error_log("Password verification failed for public user: $username");
             }
         }
     }
 
     // No user found with matching credentials
     error_log("Invalid credentials for username: $username");
-    sendError(401, "Invalid credentials");
+    sendError(401, "Invalid username, password, or role");
 
 } catch (Exception $e) {
     error_log("Login error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     sendError(500, "Login failed: " . $e->getMessage());
 }
 ?>
