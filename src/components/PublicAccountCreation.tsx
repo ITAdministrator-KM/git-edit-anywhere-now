@@ -1,3 +1,4 @@
+
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -36,7 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Services - Update to use apiService for consistency
+// Services - Use apiService for consistency
 import { apiService, type PublicUser, type Department, type Division } from '@/services/apiService';
 
 // Components
@@ -308,7 +309,15 @@ const PublicAccountCreation = () => {
 
       // Handle response - now response should be the PublicUser directly
       if (response && response.id) {
-        setCreatedUser(response);
+        // Create proper ID card user object with required properties
+        const idCardUser = {
+          ...response,
+          mobile: response.mobile || data.mobile.trim(), // Ensure mobile is available
+          public_user_id: response.public_id || 'Unknown',
+          dateOfBirth: new Date().toISOString().split('T')[0] // Default date
+        };
+        
+        setCreatedUser(idCardUser);
         
         toast({
           title: "Success",
@@ -380,13 +389,7 @@ const PublicAccountCreation = () => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <PublicUserIDCard 
-              user={{
-                ...createdUser,
-                public_user_id: createdUser.public_user_id || createdUser.public_id || 'Unknown',
-                dateOfBirth: (createdUser as any).dateOfBirth || new Date().toISOString().split('T')[0]
-              }} 
-            />
+            <PublicUserIDCard user={createdUser} />
             <div className="mt-4 flex justify-end space-x-2">
               <Button 
                 variant="outline" 

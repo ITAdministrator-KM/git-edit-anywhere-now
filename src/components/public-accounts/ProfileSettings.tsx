@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicUserPasswordForm } from '../forms/PublicUserPasswordForm';
-import { apiService, type PublicUser } from '@/services/api';
+import { apiService, type PublicUser } from '@/services/apiService';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProfileSettingsProps {
@@ -35,15 +36,15 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
             </div>
             <div>
               <label className="text-sm font-medium">Mobile</label>
-              <p className="text-sm text-gray-500">{user.mobile}</p>
+              <p className="text-sm text-gray-500">{user.mobile || 'Not provided'}</p>
             </div>
             <div>
               <label className="text-sm font-medium">Email</label>
-              <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-sm text-gray-500">{user.email || 'Not provided'}</p>
             </div>
             <div>
               <label className="text-sm font-medium">Username</label>
-              <p className="text-sm text-gray-500">{user.username}</p>
+              <p className="text-sm text-gray-500">{user.username || 'Not provided'}</p>
             </div>
           </div>
         </CardContent>

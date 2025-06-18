@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X } from 'lucide-react';
-import type { PublicUser, Department, Division } from '@/services/api';
-import { apiService } from '@/services/api';
+import type { PublicUser, Department, Division } from '@/services/apiService';
+import { apiService } from '@/services/apiService';
 
 interface PublicUserFormProps {
   user?: PublicUser | null;
