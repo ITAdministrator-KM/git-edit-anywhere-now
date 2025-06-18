@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FileText, Clock, User, Bell, CreditCard, MapPin, Settings, Search, Download, Calendar, CheckCircle, AlertCircle, Building, Users, FileIcon, Phone } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { apiService, type PublicUser } from '@/services/api';
+import { apiService, type PublicUser } from '@/services/apiService';
 
 interface ServiceCategory {
   id: string;
@@ -187,8 +186,11 @@ const PublicDashboard = () => {
 
   const fetchUserData = async (userId: number) => {
     try {
-      const userData = await apiService.getPublicUserById(userId);
-      setCurrentUser(userData);
+      const users = await apiService.getPublicUsers();
+      const userData = users.find(u => u.id === userId);
+      if (userData) {
+        setCurrentUser(userData);
+      }
     } catch (error) {
       console.error('Failed to fetch user data:', error);
     }

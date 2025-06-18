@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { apiService } from '@/services/api';
-import type { PublicUser } from '@/services/api';
+import { apiService } from '@/services/apiService';
+import type { PublicUser } from '@/services/apiService';
 import { User, ArrowLeft } from 'lucide-react';
 import ResponsiveQRScanner from '@/components/ResponsiveQRScanner';
 
@@ -137,7 +136,7 @@ const QRScanPage = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600 w-20">Mobile:</span>
-                    <span className="font-medium">{user.mobile}</span>
+                    <span className="font-medium">{user.mobile || 'Not provided'}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600 w-20">Email:</span>
