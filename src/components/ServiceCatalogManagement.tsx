@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 
 import StaffLayout from './staff/StaffLayout';
-import { apiService, ServiceCatalog } from '@/services/apiService';
+import { apiService, type ServiceCatalog } from '@/services/apiService';
 
 const ServiceCatalogManagement = () => {
   const [activeTab, setActiveTab] = useState('service-catalog');
@@ -46,14 +47,12 @@ const ServiceCatalogManagement = () => {
     service_name: '',
     service_code: '',
     description: '',
-    department_id: '',
-    division_id: '',
+    department_name: '',
     icon: '',
     fee_amount: '',
-    required_documents: '',
     processing_time_days: '',
-    eligibility_criteria: '',
-    form_template_url: '',
+    category: '',
+    duration_minutes: '',
     status: 'active',
   });
 
@@ -107,14 +106,12 @@ const ServiceCatalogManagement = () => {
       service_name: service.service_name,
       service_code: service.service_code,
       description: service.description,
-      department_id: service.department_id?.toString() || '',
-      division_id: service.division_id?.toString() || '',
+      department_name: service.department_name || '',
       icon: service.icon,
       fee_amount: service.fee_amount?.toString() || '',
-      required_documents: service.required_documents?.join(',') || '',
       processing_time_days: service.processing_time_days?.toString() || '',
-      eligibility_criteria: service.eligibility_criteria || '',
-      form_template_url: service.form_template_url || '',
+      category: service.category || '',
+      duration_minutes: service.duration_minutes?.toString() || '',
       status: service.status,
     });
   };
@@ -139,40 +136,27 @@ const ServiceCatalogManagement = () => {
 
   const handleSubmit = async () => {
     try {
+      const serviceData = {
+        service_name: formData.service_name,
+        service_code: formData.service_code,
+        description: formData.description,
+        department_name: formData.department_name,
+        icon: formData.icon,
+        fee_amount: parseFloat(formData.fee_amount) || 0,
+        processing_time_days: parseInt(formData.processing_time_days) || 0,
+        category: formData.category,
+        duration_minutes: parseInt(formData.duration_minutes) || 0,
+        status: formData.status,
+      };
+
       if (isEditing && selectedService) {
-        await apiService.updateService(selectedService.id, {
-          service_name: formData.service_name,
-          service_code: formData.service_code,
-          description: formData.description,
-          department_id: parseInt(formData.department_id),
-          division_id: formData.division_id ? parseInt(formData.division_id) : null,
-          icon: formData.icon,
-          fee_amount: parseFloat(formData.fee_amount),
-          required_documents: formData.required_documents.split(','),
-          processing_time_days: parseInt(formData.processing_time_days),
-          eligibility_criteria: formData.eligibility_criteria,
-          form_template_url: formData.form_template_url,
-          status: formData.status,
-        });
+        await apiService.updateService(selectedService.id, serviceData);
         toast({
           title: "Success",
           description: "Service updated successfully",
         });
       } else {
-        await apiService.createService({
-          service_name: formData.service_name,
-          service_code: formData.service_code,
-          description: formData.description,
-          department_id: parseInt(formData.department_id),
-          division_id: formData.division_id ? parseInt(formData.division_id) : null,
-          icon: formData.icon,
-          fee_amount: parseFloat(formData.fee_amount),
-          required_documents: formData.required_documents.split(','),
-          processing_time_days: parseInt(formData.processing_time_days),
-          eligibility_criteria: formData.eligibility_criteria,
-          form_template_url: formData.form_template_url,
-          status: formData.status,
-        });
+        await apiService.createService(serviceData);
         toast({
           title: "Success",
           description: "Service created successfully",
@@ -195,14 +179,12 @@ const ServiceCatalogManagement = () => {
       service_name: '',
       service_code: '',
       description: '',
-      department_id: '',
-      division_id: '',
+      department_name: '',
       icon: '',
       fee_amount: '',
-      required_documents: '',
       processing_time_days: '',
-      eligibility_criteria: '',
-      form_template_url: '',
+      category: '',
+      duration_minutes: '',
       status: 'active',
     });
   };
@@ -210,7 +192,7 @@ const ServiceCatalogManagement = () => {
   const filteredServices = services.filter(service => {
     const matchesSearch = service.service_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       service.service_code.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = filterDepartment === 'all' || service.department_id.toString() === filterDepartment;
+    const matchesDepartment = filterDepartment === 'all' || service.department_name === filterDepartment;
     return matchesSearch && matchesDepartment;
   });
 
@@ -254,16 +236,10 @@ const ServiceCatalogManagement = () => {
                     <Textarea id="description" value={formData.description} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="department_id" className="text-right">
-                      Department ID
+                    <Label htmlFor="department_name" className="text-right">
+                      Department
                     </Label>
-                    <Input type="text" id="department_id" value={formData.department_id} onChange={handleInputChange} className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="division_id" className="text-right">
-                      Division ID
-                    </Label>
-                    <Input type="text" id="division_id" value={formData.division_id} onChange={handleInputChange} className="col-span-3" />
+                    <Input type="text" id="department_name" value={formData.department_name} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="icon" className="text-right">
@@ -278,28 +254,22 @@ const ServiceCatalogManagement = () => {
                     <Input type="text" id="fee_amount" value={formData.fee_amount} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="required_documents" className="text-right">
-                      Required Documents
-                    </Label>
-                    <Input type="text" id="required_documents" value={formData.required_documents} onChange={handleInputChange} className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="processing_time_days" className="text-right">
                       Processing Time (Days)
                     </Label>
                     <Input type="text" id="processing_time_days" value={formData.processing_time_days} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="eligibility_criteria" className="text-right">
-                      Eligibility Criteria
+                    <Label htmlFor="category" className="text-right">
+                      Category
                     </Label>
-                    <Textarea id="eligibility_criteria" value={formData.eligibility_criteria} onChange={handleInputChange} className="col-span-3" />
+                    <Input type="text" id="category" value={formData.category} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="form_template_url" className="text-right">
-                      Form Template URL
+                    <Label htmlFor="duration_minutes" className="text-right">
+                      Duration (Minutes)
                     </Label>
-                    <Input type="text" id="form_template_url" value={formData.form_template_url} onChange={handleInputChange} className="col-span-3" />
+                    <Input type="text" id="duration_minutes" value={formData.duration_minutes} onChange={handleInputChange} className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status" className="text-right">
@@ -336,8 +306,8 @@ const ServiceCatalogManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="1">Department 1</SelectItem>
-                  <SelectItem value="2">Department 2</SelectItem>
+                  <SelectItem value="Administrative">Administrative</SelectItem>
+                  <SelectItem value="SSO">SSO</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -368,7 +338,7 @@ const ServiceCatalogManagement = () => {
                         <TableCell className="font-medium">{service.service_code}</TableCell>
                         <TableCell>{service.service_name}</TableCell>
                         <TableCell>{service.description}</TableCell>
-                        <TableCell>{service.department_id}</TableCell>
+                        <TableCell>{service.department_name}</TableCell>
                         <TableCell>{service.status}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(service)}>

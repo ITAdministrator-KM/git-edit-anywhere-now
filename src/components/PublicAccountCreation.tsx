@@ -36,39 +36,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Services
-import { apiService } from '@/services/api';
+// Services - Update to use apiService for consistency
+import { apiService, type PublicUser, type Department, type Division } from '@/services/apiService';
 
 // Components
 import { PublicUserIDCard } from './PublicUserIDCard';
-
-interface Department {
-  id: number;
-  name: string;
-}
-
-interface Division {
-  id: number;
-  name: string;
-  department_id: number;
-}
-
-interface PublicUser {
-  id: number;
-  public_id: string;
-  name: string;
-  nic: string;
-  address: string;
-  mobile: string;
-  email?: string;
-  department_name?: string;
-  division_name?: string;
-  created_at: string;
-  qr_code_data?: string;
-  qr_code_url?: string;
-  date_of_birth?: string;
-  [key: string]: any; // Allow additional properties
-}
 
 // Enhanced form validation schema
 const formSchema = z.object({
@@ -334,20 +306,9 @@ const PublicAccountCreation = () => {
       // Call API to create user
       const response = await apiService.createPublicUser(userData);
 
-      // Handle both object response and direct user response
-      if (response && (response.id || (typeof response === 'object' && 'status' in response && (response as any).status === 'success'))) {
-        const newUser = (typeof response === 'object' && 'data' in response) ? (response as any).data : response as PublicUser;
-        const publicUserId = (newUser as any).public_user_id || (newUser as any).public_id || `PUB-${new Date().getTime()}`;
-        const publicId = (newUser as any).public_id || publicUserId;
-        const qrCodeUrl = (newUser as any).qr_code_url || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(publicUserId)}`;
-        
-        setCreatedUser({
-          ...newUser,
-          public_user_id: publicUserId,
-          public_id: publicId,
-          qr_code_url: qrCodeUrl,
-          dateOfBirth: new Date().toISOString().split('T')[0] // Add default date of birth
-        });
+      // Handle response - now response should be the PublicUser directly
+      if (response && response.id) {
+        setCreatedUser(response);
         
         toast({
           title: "Success",

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { PublicUserPasswordForm } from './forms/PublicUserPasswordForm';
 import { PublicUserForm } from './public-accounts/PublicUserForm';
-import { apiService, type PublicUser } from '@/services/api';
+import { apiService, type PublicUser } from '@/services/apiService';
 import {
   Table,
   TableBody,
@@ -223,15 +223,15 @@ export function PublicAccountsManagement() {
                 </div>
                 <div>
                   <label className="font-semibold">Mobile:</label>
-                  <p>{selectedUser.mobile}</p>
+                  <p>{selectedUser.mobile || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="font-semibold">Email:</label>
-                  <p>{selectedUser.email}</p>
+                  <p>{selectedUser.email || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="font-semibold">Username:</label>
-                  <p>{selectedUser.username}</p>
+                  <p>{selectedUser.username || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="font-semibold">Department:</label>
@@ -283,8 +283,8 @@ export function PublicAccountsManagement() {
                 <TableCell className="font-medium">{user.public_id}</TableCell>
                 <TableCell>{user.name}</TableCell>
                 <TableCell>{user.nic}</TableCell>
-                <TableCell>{user.mobile}</TableCell>
-                <TableCell>{user.email}</TableCell>
+                <TableCell>{user.mobile || '-'}</TableCell>
+                <TableCell>{user.email || '-'}</TableCell>
                 <TableCell>{user.department_name || '-'}</TableCell>
                 <TableCell>{user.division_name || '-'}</TableCell>
                 <TableCell className="text-right space-x-2">
