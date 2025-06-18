@@ -9,17 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { Bell, Send, Users, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { apiService } from '@/services/api';
-
-interface PublicUser {
-  id: number;
-  public_id: string;
-  name: string;
-  mobile: string;
-  email?: string;
-  qr_code_data?: string;
-  qr_code_url?: string;
-}
+import { apiService, type PublicUser } from '@/services/apiService';
 
 interface NotificationTemplate {
   id: string;

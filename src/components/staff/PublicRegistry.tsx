@@ -1,260 +1,92 @@
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Camera, QrCode, User, UserPlus, RefreshCw, Calendar, Download, Search, FileDown } from 'lucide-react';
-import { format } from 'date-fns';
-import { apiService } from '@/services/apiService';
-import type { PublicUser, Department, Division, RegistryEntry } from '@/services/apiService';
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { apiService, type PublicUser, type Department, type Division, type RegistryEntry } from '@/services/apiService';
+import { UserPlus, QrCode, Search, Download, Filter, Clock, Users, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
 
-interface RegistryFormData {
-  name: string;
-  nic: string;
-  address: string;
-  phone: string;
-  department_id: string;
-  division_id: string;
-  purpose_of_visit: string;
-  remarks: string;
-  public_id: string;
-}
+export const PublicRegistry = () => {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('new-visitor');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
+  const [registryEntries, setRegistryEntries] = useState<RegistryEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
-const initialFormState: RegistryFormData = {
-  name: '',
-  nic: '',
-  address: '',
-  phone: '',
-  department_id: '',
-  division_id: '',
-  purpose_of_visit: '',
-  remarks: '',
-  public_id: ''
-};
-
-// Simple PublicUserForm component
-interface PublicUserFormProps {
-  onSubmit: (userData: any) => void;
-  onClose: () => void;
-  isLoading: boolean;
-}
-
-function PublicUserForm({ onSubmit, isLoading }: PublicUserFormProps) {
-  const [formData, setFormData] = useState({
+  const [newVisitorForm, setNewVisitorForm] = useState({
     name: '',
     nic: '',
-    email: '',
-    username: '',
-    password: '',
     address: '',
     phone: '',
     department_id: '',
-    division_id: ''
+    purpose_of_visit: '',
+    remarks: ''
   });
 
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [existingVisitorForm, setExistingVisitorForm] = useState({
+    public_user_id: '',
+    purpose_of_visit: '',
+    remarks: ''
+  });
 
   useEffect(() => {
-    const loadData = async () => {
-      const [depts, divs] = await Promise.all([
-        apiService.getDepartments(),
-        apiService.getDivisions()
-      ]);
-      setDepartments(depts);
-      setDivisions(divs);
-    };
-    loadData();
+    fetchDepartments();
+    fetchDivisions();
+    fetchPublicUsers();
+    fetchRegistryEntries();
   }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Full Name *</Label>
-          <Input
-            value={formData.name}
-            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <Label>NIC Number *</Label>
-          <Input
-            value={formData.nic}
-            onChange={(e) => setFormData(prev => ({ ...prev, nic: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <Label>Email *</Label>
-          <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <Label>Username *</Label>
-          <Input
-            value={formData.username}
-            onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <Label>Password *</Label>
-          <Input
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <Label>Phone</Label>
-          <Input
-            value={formData.phone}
-            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-          />
-        </div>
-      </div>
-      
-      <div>
-        <Label>Address *</Label>
-        <Textarea
-          value={formData.address}
-          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Department</Label>
-          <Select 
-            value={formData.department_id}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              {departments.map(dept => (
-                <SelectItem key={dept.id} value={dept.id.toString()}>
-                  {dept.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Division</Label>
-          <Select 
-            value={formData.division_id}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, division_id: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select division" />
-            </SelectTrigger>
-            <SelectContent>
-              {divisions.map(div => (
-                <SelectItem key={div.id} value={div.id.toString()}>
-                  {div.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Button type="submit" disabled={isLoading} className="w-full">
-        {isLoading ? 'Creating Account...' : 'Create Account & Proceed'}
-      </Button>
-    </form>
-  );
-}
-
-// Simple QR Scanner component
-interface ResponsiveQRScannerProps {
-  onScanSuccess: (result: string) => void;
-  onError: (error: any) => void;
-}
-
-function ResponsiveQRScanner({ onScanSuccess }: ResponsiveQRScannerProps) {
-  return (
-    <div className="p-4 text-center">
-      <QrCode size={48} className="mx-auto mb-4 text-gray-400" />
-      <p className="text-gray-600 mb-4">QR Scanner placeholder</p>
-      <p className="text-sm text-gray-500">
-        QR scanning functionality would be implemented here using a library like html5-qrcode
-      </p>
-      <Button 
-        onClick={() => onScanSuccess(JSON.stringify({ public_id: 'PUB12345' }))}
-        className="mt-4"
-      >
-        Simulate QR Scan
-      </Button>
-    </div>
-  );
-}
-
-export function PublicRegistry() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showQRScanner, setShowQRScanner] = useState(false);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [divisions, setDivisions] = useState<Division[]>([]);
-  const [registryEntries, setRegistryEntries] = useState<RegistryEntry[]>([]);
-  const [scannedUser, setScannedUser] = useState<PublicUser | null>(null);
-  const [visitorType, setVisitorType] = useState<'new' | 'existing'>('new');
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-  const [filterDepartment, setFilterDepartment] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState<RegistryFormData>(initialFormState);
 
   useEffect(() => {
-    fetchInitialData();
-    fetchTodayEntries();
-  }, []);
+    fetchRegistryEntries();
+  }, [selectedDate, selectedDepartment, searchTerm]);
 
-  const fetchInitialData = async () => {
+  const fetchDepartments = async () => {
     try {
-      const [depts, divs] = await Promise.all([
-        apiService.getDepartments(),
-        apiService.getDivisions()
-      ]);
-      setDepartments(depts);
-      setDivisions(divs);
+      const data = await apiService.getDepartments();
+      setDepartments(data);
     } catch (error) {
-      console.error('Error fetching initial data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load departments and divisions",
-        variant: "destructive",
-      });
+      console.error('Error fetching departments:', error);
     }
   };
 
-  const fetchTodayEntries = async () => {
+  const fetchDivisions = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const entries = await apiService.getRegistryEntries(today);
-      setRegistryEntries(entries);
+      const data = await apiService.getDivisions();
+      setDivisions(data);
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+    }
+  };
+
+  const fetchPublicUsers = async () => {
+    try {
+      const data = await apiService.getPublicUsers();
+      setPublicUsers(data);
+    } catch (error) {
+      console.error('Error fetching public users:', error);
+    }
+  };
+
+  const fetchRegistryEntries = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiService.getRegistryEntries(selectedDate, selectedDepartment, searchTerm);
+      setRegistryEntries(data);
     } catch (error) {
       console.error('Error fetching registry entries:', error);
       toast({
@@ -262,522 +94,544 @@ export function PublicRegistry() {
         description: "Failed to fetch registry entries",
         variant: "destructive",
       });
-    }
-  };
-
-  const handlePublicIdLookup = async (publicId: string) => {
-    if (!publicId.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a Public ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const users = await apiService.getPublicUsers();
-      const user = users.find(u => u.public_id === publicId);
-      
-      if (user) {
-        setScannedUser(user);
-        setFormData(prev => ({
-          ...prev,
-          name: user.name,
-          nic: user.nic,
-          address: user.address,
-          phone: user.phone || '',
-          department_id: user.department_id?.toString() || '',
-          division_id: user.division_id?.toString() || ''
-        }));
-        
-        toast({
-          title: "User Found",
-          description: `Welcome back, ${user.name}!`,
-        });
-      } else {
-        toast({
-          title: "User Not Found",
-          description: "No user found with this ID",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to lookup user",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleQRScan = (result: string) => {
-    try {
-      const qrData = JSON.parse(result);
-      if (qrData.public_id) {
-        handlePublicIdLookup(qrData.public_id);
-        setShowQRScanner(false);
-      }
-    } catch (error) {
-      toast({
-        title: "Invalid QR Code",
-        description: "Please scan a valid Public ID QR code",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateAccount = async (userData: any) => {
-    try {
-      setIsSubmitting(true);
-      const newUser = await apiService.createPublicUser(userData);
-      
-      toast({
-        title: "Account Created",
-        description: `Public ID: ${newUser.public_id}`,
-      });
-
-      // Auto-proceed to registry entry
-      setScannedUser(newUser);
-      setVisitorType('existing');
-      setFormData(prev => ({
-        ...prev,
-        name: newUser.name,
-        nic: newUser.nic,
-        address: newUser.address,
-        phone: newUser.phone || '',
-        department_id: newUser.department_id?.toString() || '',
-        division_id: newUser.division_id?.toString() || ''
-      }));
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create account",
-        variant: "destructive",
-      });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  const handleRegistrySubmit = async () => {
-    if (!formData.purpose_of_visit.trim()) {
+  const handleNewVisitorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newVisitorForm.name || !newVisitorForm.nic || !newVisitorForm.department_id || !newVisitorForm.purpose_of_visit) {
       toast({
-        title: "Validation Error",
-        description: "Please enter the purpose of visit",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.department_id) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a department",
+        title: "Error",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      setIsSubmitting(true);
+      setIsLoading(true);
       
-      const registryData = {
-        public_user_id: scannedUser?.id,
-        visitor_name: formData.name,
-        visitor_nic: formData.nic,
-        visitor_address: formData.address,
-        visitor_phone: formData.phone,
-        department_id: parseInt(formData.department_id),
-        division_id: formData.division_id ? parseInt(formData.division_id) : null,
-        purpose_of_visit: formData.purpose_of_visit,
-        remarks: formData.remarks,
-        visitor_type: visitorType,
-        created_by: user?.id
+      // Create public user first
+      const publicUserData = {
+        name: newVisitorForm.name,
+        nic: newVisitorForm.nic,
+        address: newVisitorForm.address || '',
+        phone: newVisitorForm.phone || '',
+        mobile: newVisitorForm.phone || '',
+        email: '',
+        username: `user_${Date.now()}`,
+        department_id: parseInt(newVisitorForm.department_id),
+        status: 'active'
       };
 
-      const response = await apiService.createRegistryEntry(registryData);
-      
+      const newUser = await apiService.createPublicUser(publicUserData);
+
+      // Create registry entry
+      const registryData = {
+        public_user_id: newUser.id,
+        visitor_name: newVisitorForm.name,
+        visitor_nic: newVisitorForm.nic,
+        visitor_address: newVisitorForm.address,
+        visitor_phone: newVisitorForm.phone,
+        department_id: parseInt(newVisitorForm.department_id),
+        purpose_of_visit: newVisitorForm.purpose_of_visit,
+        remarks: newVisitorForm.remarks,
+        visitor_type: 'new' as const
+      };
+
+      await apiService.createRegistryEntry(registryData);
+
       toast({
-        title: "Entry Recorded",
-        description: `Registry ID: ${response.registry_id}`,
+        title: "Success",
+        description: "New visitor registered successfully",
       });
 
       // Reset form
-      setFormData(initialFormState);
-      setScannedUser(null);
-      setVisitorType('new');
-      
-      // Refresh entries
-      fetchTodayEntries();
-      
-    } catch (error) {
+      setNewVisitorForm({
+        name: '',
+        nic: '',
+        address: '',
+        phone: '',
+        department_id: '',
+        purpose_of_visit: '',
+        remarks: ''
+      });
+
+      setIsDialogOpen(false);
+      fetchRegistryEntries();
+      fetchPublicUsers();
+    } catch (error: any) {
+      console.error('Error registering new visitor:', error);
       toast({
         title: "Error",
-        description: "Failed to record entry",
+        description: error.message || "Failed to register visitor",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleExistingVisitorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!existingVisitorForm.public_user_id || !existingVisitorForm.purpose_of_visit) {
+      toast({
+        title: "Error",
+        description: "Please select a user and enter purpose of visit",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const selectedUser = publicUsers.find(u => u.id === parseInt(existingVisitorForm.public_user_id));
+      if (!selectedUser) {
+        throw new Error("Selected user not found");
+      }
+
+      const registryData = {
+        public_user_id: selectedUser.id,
+        visitor_name: selectedUser.name,
+        visitor_nic: selectedUser.nic,
+        visitor_address: selectedUser.address,
+        visitor_phone: selectedUser.phone || selectedUser.mobile,
+        department_id: selectedUser.department_id || 1,
+        purpose_of_visit: existingVisitorForm.purpose_of_visit,
+        remarks: existingVisitorForm.remarks,
+        visitor_type: 'existing' as const
+      };
+
+      await apiService.createRegistryEntry(registryData);
+
+      toast({
+        title: "Success",
+        description: "Existing visitor registered successfully",
+      });
+
+      // Reset form
+      setExistingVisitorForm({
+        public_user_id: '',
+        purpose_of_visit: '',
+        remarks: ''
+      });
+
+      setIsDialogOpen(false);
+      fetchRegistryEntries();
+    } catch (error: any) {
+      console.error('Error registering existing visitor:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to register visitor",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const exportToCSV = () => {
+    const headers = ['Time', 'Registry ID', 'Name', 'NIC', 'Department', 'Purpose', 'Type'];
     const csvContent = [
-      ['Time', 'Name', 'NIC', 'Department', 'Purpose', 'Type'],
+      headers.join(','),
       ...registryEntries.map(entry => [
         format(new Date(entry.entry_time), 'HH:mm'),
+        entry.registry_id,
         entry.visitor_name,
         entry.visitor_nic,
         entry.department_name || '',
         entry.purpose_of_visit,
         entry.visitor_type
-      ])
-    ].map(row => row.join(',')).join('\n');
+      ].join(','))
+    ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
+    a.style.display = 'none';
     a.href = url;
-    a.download = `registry_${filterDate}.csv`;
+    a.download = `registry_${selectedDate}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
-  // Filter entries based on search and filters
-  const filteredEntries = registryEntries.filter(entry => {
-    const matchesSearch = !searchTerm || 
-      entry.visitor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.visitor_nic.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.registry_id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDepartment = !filterDepartment || 
-      entry.department_id.toString() === filterDepartment;
-    
-    return matchesSearch && matchesDepartment;
-  });
-
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-6 rounded-xl shadow-lg">
-        <h1 className="text-3xl font-bold mb-2">Public Visitor Registry</h1>
-        <p className="text-blue-100">Manage visitor entries and track public services</p>
-      </div>
-
-      {/* Registration Form */}
-      <Card className="shadow-lg border-0 bg-white/95 backdrop-blur">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-green-50 rounded-t-xl">
-          <CardTitle className="text-2xl text-gray-800 flex items-center gap-2">
-            <UserPlus size={24} />
-            Visitor Registration
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          {/* Visitor Type Selection */}
-          <div className="mb-6">
-            <Label className="text-lg font-semibold mb-3 block">Select Visitor Type</Label>
-            <RadioGroup
-              value={visitorType}
-              onValueChange={(value: 'new' | 'existing') => {
-                setVisitorType(value);
-                setScannedUser(null);
-                setFormData(initialFormState);
-              }}
-              className="flex space-x-6"
-            >
-              <div className="flex items-center space-x-2 bg-green-50 p-3 rounded-lg">
-                <RadioGroupItem value="new" id="new" />
-                <Label htmlFor="new" className="cursor-pointer">New Visitor</Label>
-              </div>
-              <div className="flex items-center space-x-2 bg-blue-50 p-3 rounded-lg">
-                <RadioGroupItem value="existing" id="existing" />
-                <Label htmlFor="existing" className="cursor-pointer">Existing ID</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Form Content */}
-          {visitorType === 'new' ? (
-            <div className="bg-gray-50 p-6 rounded-xl">
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">Create New Public Account</h3>
-              <PublicUserForm 
-                onSubmit={handleCreateAccount}
-                onClose={() => {}}
-                isLoading={isSubmitting}
-              />
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* ID Lookup Section */}
-              <div className="bg-blue-50 p-6 rounded-xl">
-                <h3 className="text-xl font-semibold mb-4 text-gray-800">Scan or Enter Public ID</h3>
-                <div className="flex gap-4">
-                  <Button 
-                    onClick={() => setShowQRScanner(true)}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Camera className="mr-2" size={16} />
-                    Scan QR Code
-                  </Button>
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Enter Public ID (e.g., PUB12345)"
-                      value={formData.public_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, public_id: e.target.value }))}
-                      className="h-10"
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Public Visitor Registry</h2>
+          <p className="text-gray-600 mt-1">Manage visitor entries and track public services</p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <UserPlus className="mr-2" size={20} />
+              Register Visitor
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Register New Visitor</DialogTitle>
+              <DialogDescription>
+                Register a new visitor or check-in an existing public user
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="new-visitor">New Visitor</TabsTrigger>
+                <TabsTrigger value="existing-user">Existing User</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="new-visitor">
+                <form onSubmit={handleNewVisitorSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name *</Label>
+                      <Input
+                        id="name"
+                        value={newVisitorForm.name}
+                        onChange={(e) => setNewVisitorForm({...newVisitorForm, name: e.target.value})}
+                        placeholder="Enter full name"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="nic">NIC Number *</Label>
+                      <Input
+                        id="nic"
+                        value={newVisitorForm.nic}
+                        onChange={(e) => setNewVisitorForm({...newVisitorForm, nic: e.target.value})}
+                        placeholder="Enter NIC number"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={newVisitorForm.address}
+                      onChange={(e) => setNewVisitorForm({...newVisitorForm, address: e.target.value})}
+                      placeholder="Enter address"
+                      rows={2}
                     />
                   </div>
-                  <Button 
-                    onClick={() => handlePublicIdLookup(formData.public_id || '')}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Search className="mr-2" size={16} />
-                    Search
-                  </Button>
-                </div>
-              </div>
-
-              {/* User Details & Registry Form */}
-              {scannedUser && (
-                <div className="space-y-6">
-                  <Card className="bg-gradient-to-r from-green-50 to-blue-50">
-                    <CardContent className="p-6">
-                      <h3 className="text-lg font-semibold mb-4 text-gray-800">Visitor Information</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm font-medium text-gray-600">Name</Label>
-                          <p className="font-semibold text-gray-800">{scannedUser.name}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-gray-600">NIC</Label>
-                          <p className="font-semibold text-gray-800">{scannedUser.nic}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-gray-600">Department</Label>
-                          <p className="font-semibold text-gray-800">{scannedUser.department_name || 'Not assigned'}</p>
-                        </div>
-                        <div>
-                          <Label className="text-sm font-medium text-gray-600">Division</Label>
-                          <p className="font-semibold text-gray-800">{scannedUser.division_name || 'Not assigned'}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Registry Entry Form */}
-                  <Card>
-                    <CardContent className="p-6 space-y-4">
-                      <h3 className="text-lg font-semibold mb-4 text-gray-800">Visit Details</h3>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Department *</Label>
-                          <Select 
-                            value={formData.department_id}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {departments.map(dept => (
-                                <SelectItem key={dept.id} value={dept.id.toString()}>
-                                  {dept.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Division</Label>
-                          <Select 
-                            value={formData.division_id}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, division_id: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select division" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {divisions.map(div => (
-                                <SelectItem key={div.id} value={div.id.toString()}>
-                                  {div.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Purpose of Visit *</Label>
-                        <Input
-                          value={formData.purpose_of_visit}
-                          onChange={(e) => setFormData(prev => ({ ...prev, purpose_of_visit: e.target.value }))}
-                          placeholder="Enter purpose of visit"
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Remarks (Optional)</Label>
-                        <Textarea
-                          value={formData.remarks}
-                          onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
-                          placeholder="Add any additional notes"
-                          className="mt-1"
-                        />
-                      </div>
-
-                      <Button 
-                        onClick={handleRegistrySubmit}
-                        disabled={isSubmitting}
-                        className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 h-12"
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        value={newVisitorForm.phone}
+                        onChange={(e) => setNewVisitorForm({...newVisitorForm, phone: e.target.value})}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Department *</Label>
+                      <Select
+                        value={newVisitorForm.department_id}
+                        onValueChange={(value) => setNewVisitorForm({...newVisitorForm, department_id: value})}
                       >
-                        {isSubmitting ? 'Recording Entry...' : 'Submit Entry'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id.toString()}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="purpose">Purpose of Visit *</Label>
+                    <Textarea
+                      id="purpose"
+                      value={newVisitorForm.purpose_of_visit}
+                      onChange={(e) => setNewVisitorForm({...newVisitorForm, purpose_of_visit: e.target.value})}
+                      placeholder="Enter purpose of visit"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="remarks">Remarks</Label>
+                    <Textarea
+                      id="remarks"
+                      value={newVisitorForm.remarks}
+                      onChange={(e) => setNewVisitorForm({...newVisitorForm, remarks: e.target.value})}
+                      placeholder="Additional remarks"
+                      rows={2}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? 'Registering...' : 'Register Visitor'}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="existing-user">
+                <form onSubmit={handleExistingVisitorSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="existing-user">Select User *</Label>
+                    <Select
+                      value={existingVisitorForm.public_user_id}
+                      onValueChange={(value) => setExistingVisitorForm({...existingVisitorForm, public_user_id: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select existing user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {publicUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.name} - {user.public_id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="existing-purpose">Purpose of Visit *</Label>
+                    <Textarea
+                      id="existing-purpose"
+                      value={existingVisitorForm.purpose_of_visit}
+                      onChange={(e) => setExistingVisitorForm({...existingVisitorForm, purpose_of_visit: e.target.value})}
+                      placeholder="Enter purpose of visit"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="existing-remarks">Remarks</Label>
+                    <Textarea
+                      id="existing-remarks"
+                      value={existingVisitorForm.remarks}
+                      onChange={(e) => setExistingVisitorForm({...existingVisitorForm, remarks: e.target.value})}
+                      placeholder="Additional remarks"
+                      rows={2}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? 'Registering...' : 'Register Visit'}
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Filters and Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Users className="text-blue-600" size={20} />
+              <div>
+                <p className="text-sm text-gray-600">Today's Visitors</p>
+                <p className="text-2xl font-bold">{registryEntries.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <UserPlus className="text-green-600" size={20} />
+              <div>
+                <p className="text-sm text-gray-600">New Accounts</p>
+                <p className="text-2xl font-bold">
+                  {registryEntries.filter(e => e.visitor_type === 'new').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="text-purple-600" size={20} />
+              <div>
+                <p className="text-sm text-gray-600">Active Entries</p>
+                <p className="text-2xl font-bold">
+                  {registryEntries.filter(e => e.status === 'active').length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Clock className="text-orange-600" size={20} />
+              <div>
+                <p className="text-sm text-gray-600">Last Entry</p>
+                <p className="text-sm font-semibold">
+                  {registryEntries.length > 0 
+                    ? format(new Date(registryEntries[0].entry_time), 'HH:mm')
+                    : 'None'
+                  }
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Registry Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="department-filter">Department</Label>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All departments</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="search">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <Input
+                  id="search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by name, NIC, or registry ID"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Actions</Label>
+              <Button onClick={exportToCSV} variant="outline" className="w-full">
+                <Download className="mr-2" size={16} />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Registry Entries Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Registry Entries ({format(new Date(selectedDate), 'PPP')})</CardTitle>
+          <CardDescription>
+            Real-time visitor log with auto-refresh
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Registry ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>NIC</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {registryEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">
+                        {format(new Date(entry.entry_time), 'HH:mm')}
+                      </TableCell>
+                      <TableCell>{entry.registry_id}</TableCell>
+                      <TableCell>{entry.visitor_name}</TableCell>
+                      <TableCell>{entry.visitor_nic}</TableCell>
+                      <TableCell>{entry.department_name || 'N/A'}</TableCell>
+                      <TableCell className="max-w-xs truncate">{entry.purpose_of_visit}</TableCell>
+                      <TableCell>
+                        <Badge variant={entry.visitor_type === 'new' ? 'default' : 'secondary'}>
+                          {entry.visitor_type === 'new' ? 'New' : 'Existing'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={entry.status === 'active' ? 'default' : 'secondary'}>
+                          {entry.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {registryEntries.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                        No entries found for the selected criteria
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Entry Log Panel */}
-      <Card className="shadow-lg border-0 bg-white/95 backdrop-blur">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-green-50 rounded-t-xl">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl text-gray-800 flex items-center gap-2">
-              <Calendar size={24} />
-              Today's Entries ({filteredEntries.length})
-            </CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={exportToCSV} className="border-green-600 text-green-600 hover:bg-green-50">
-                <Download className="mr-2" size={16} />
-                Export CSV
-              </Button>
-              <Button variant="outline" onClick={fetchTodayEntries} className="border-blue-600 text-blue-600 hover:bg-blue-50">
-                <RefreshCw className="mr-2" size={16} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
-            <Select 
-              value={filterDepartment}
-              onValueChange={setFilterDepartment}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
-                {departments.map(dept => (
-                  <SelectItem key={dept.id} value={dept.id.toString()}>
-                    {dept.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-[200px]"
-            />
-
-            <Input
-              placeholder="Search entries..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1"
-            />
-          </div>
-
-          {/* Entries Table */}
-          <div className="relative overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs uppercase bg-gradient-to-r from-blue-50 to-green-50">
-                <tr>
-                  <th className="px-6 py-4 font-semibold text-gray-700">Time</th>
-                  <th className="px-6 py-4 font-semibold text-gray-700">Name</th>
-                  <th className="px-6 py-4 font-semibold text-gray-700">NIC</th>
-                  <th className="px-6 py-4 font-semibold text-gray-700">Department</th>
-                  <th className="px-6 py-4 font-semibold text-gray-700">Purpose</th>
-                  <th className="px-6 py-4 font-semibold text-gray-700">Type</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      No entries found for today
-                    </td>
-                  </tr>
-                ) : (
-                  filteredEntries.map(entry => (
-                    <tr key={entry.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-medium">
-                        {format(new Date(entry.entry_time), 'HH:mm')}
-                      </td>
-                      <td className="px-6 py-4">{entry.visitor_name}</td>
-                      <td className="px-6 py-4">{entry.visitor_nic}</td>
-                      <td className="px-6 py-4">{entry.department_name}</td>
-                      <td className="px-6 py-4 max-w-xs truncate">{entry.purpose_of_visit}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          entry.visitor_type === 'new' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {entry.visitor_type}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* QR Scanner Modal */}
-      {showQRScanner && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Scan QR Code</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveQRScanner
-                onScanSuccess={handleQRScan}
-                onError={(error) => {
-                  console.error('QR scan error:', error);
-                  toast({
-                    title: "Scan Error",
-                    description: "Failed to scan QR code",
-                    variant: "destructive",
-                  });
-                }}
-              />
-              <Button 
-                variant="outline" 
-                onClick={() => setShowQRScanner(false)}
-                className="w-full mt-4"
-              >
-                Close Scanner
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
-}
+};
+
+export default PublicRegistry;
