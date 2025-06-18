@@ -141,7 +141,14 @@ export function PublicAccountsManagement() {
 
   const handlePrintIDCard = async (user: PublicUser) => {
     try {
-      await EnhancedIDCardPrinter.printSingleCard(user, false, toast);
+      // Ensure the user object has all required properties
+      const userWithProps = {
+        ...user,
+        mobile: user.mobile || '',
+        email: user.email || '',
+        username: user.username || ''
+      };
+      await EnhancedIDCardPrinter.printSingleCard(userWithProps, false, toast);
     } catch (error) {
       console.error('Error printing ID card:', error);
       toast({

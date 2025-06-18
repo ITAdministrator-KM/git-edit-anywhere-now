@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
-import type { PublicUser } from '@/services/api';
+import type { PublicUser } from '@/services/apiService';
 
 interface PublicUserTableProps {
   users: PublicUser[];
@@ -56,7 +56,7 @@ export const PublicUserTable = ({ users, onEdit, onDelete }: PublicUserTableProp
               <td className="border border-gray-200 px-4 py-3 font-medium">{user.public_id}</td>
               <td className="border border-gray-200 px-4 py-3">{user.name}</td>
               <td className="border border-gray-200 px-4 py-3">{user.nic}</td>
-              <td className="border border-gray-200 px-4 py-3">{user.mobile}</td>
+              <td className="border border-gray-200 px-4 py-3">{user.mobile || '-'}</td>
               <td className="border border-gray-200 px-4 py-3">
                 {user.department_name || '-'}
               </td>
@@ -74,7 +74,7 @@ export const PublicUserTable = ({ users, onEdit, onDelete }: PublicUserTableProp
                 )}
               </td>
               <td className="border border-gray-200 px-4 py-3">
-                {new Date(user.created_at).toLocaleDateString()}
+                {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
               </td>
               <td className="border border-gray-200 px-4 py-3">
                 <div className="flex justify-center space-x-2">

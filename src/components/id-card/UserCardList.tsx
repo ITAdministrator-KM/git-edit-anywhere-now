@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, Printer, Download } from 'lucide-react';
-import type { PublicUser } from '@/services/api';
+import type { PublicUser } from '@/services/apiService';
 import { IDCardValidator } from './IDCardValidator';
 
 interface UserCardListProps {

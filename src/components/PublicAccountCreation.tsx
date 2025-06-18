@@ -1,4 +1,3 @@
-
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
@@ -52,7 +51,7 @@ const formSchema = z.object({
   nic: z.string()
     .min(10, 'NIC must be at least 10 characters')
     .max(12, 'NIC cannot exceed 12 characters')
-    .regex(/^[0-9]{9}[vVxX]?$|^[0-9]{12}$/, 'Invalid NIC format. Use 9 digits with optional V/X or 12 digits'),
+    .regex(/^[0-9]{9}[vVxX]?$|^[0-9]{12}$/, 'Invalid NIC format. Use 9 digits followed by V/X or 12 digits'),
   address: z.string()
     .min(5, 'Address must be at least 5 characters')
     .max(200, 'Address cannot exceed 200 characters'),
@@ -102,7 +101,7 @@ const PublicAccountCreation = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showIdCard, setShowIdCard] = useState(false);
-  const [createdUser, setCreatedUser] = useState<PublicUser | null>(null);
+  const [createdUser, setCreatedUser] = useState<any>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
@@ -313,6 +312,8 @@ const PublicAccountCreation = () => {
         const idCardUser = {
           ...response,
           mobile: response.mobile || data.mobile.trim(), // Ensure mobile is available
+          email: response.email || data.email?.trim() || '',
+          username: response.username || data.username.trim(),
           public_user_id: response.public_id || 'Unknown',
           dateOfBirth: new Date().toISOString().split('T')[0] // Default date
         };
@@ -643,11 +644,11 @@ const PublicAccountCreation = () => {
                 {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-mono text-sm">{user.public_id}</TableCell>
-                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell>{user.name}</TableCell>
                     <TableCell>{user.nic}</TableCell>
-                    <TableCell>{user.mobile}</TableCell>
+                    <TableCell>{user.mobile || '-'}</TableCell>
                     <TableCell>{user.department_name || '-'}</TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

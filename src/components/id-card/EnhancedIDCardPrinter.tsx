@@ -1,8 +1,7 @@
-
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
-import type { PublicUser } from '@/services/api';
+import type { PublicUser } from '@/services/apiService';
 
 export class EnhancedIDCardPrinter {
   static async printSingleCard(user: PublicUser, autoPrint: boolean, toast: any) {
@@ -19,8 +18,8 @@ export class EnhancedIDCardPrinter {
               id: user.public_id,
               name: user.name,
               nic: user.nic,
-              mobile: user.mobile,
-              email: user.email,
+              mobile: user.mobile || '',
+              email: user.email || '',
               address: user.address,
               issued: new Date().toISOString().split('T')[0],
               authority: 'DSK Kalmunai',
@@ -156,10 +155,10 @@ export class EnhancedIDCardPrinter {
             </div>
             <div class="detail-row">
               <span class="label">Mobile:</span>
-              <span class="value">${user.mobile}</span>
+              <span class="value">${user.mobile || 'N/A'}</span>
             </div>
             <div class="detail-row">
-              <span class="label">ID:</span>
+              <span class="label">Address:</span>
               <span class="value address-text">${user.address}</span>
             </div>
             <div class="detail-row id-row">
